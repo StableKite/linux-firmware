@@ -1,0 +1,61 @@
+name: Sync GitLab upstream
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: linux-firmware-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Fetch upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "stablekite-upstream-sync"
+          git config user.email "actions@users.noreply.github.com"
+          git remote remove upstream 2>/dev/null || true
+          git remote add upstream https://gitlab.com/kernel-firmware/linux-firmware.git
+          git fetch --filter=blob:none --prune --tags upstream +refs/heads/main:refs/remotes/upstream/main
+
+      - name: Merge upstream into StableKite main
+        shell: bash
+        run: |
+          set +e
+          git merge --no-edit upstream/main
+          rc=$?
+          if [ $rc -ne 0 ]; then
+            echo "::error title=GitLab upstream merge conflict::Automatic merge of kernel-firmware/linux-firmware:main failed. Manual port/review is required."
+            echo "Conflicted paths:"
+            git diff --name-only --diff-filter=U || true
+            exit 1
+          fi
+          set -e
+          if [ -e arm/mali/arch10.8/mali_csffw.bin ]; then
+            echo "::error title=Managed blob reintroduced::arm/mali/arch10.8/mali_csffw.bin exists after merge. Review upstream before syncing."
+            exit 1
+          fi
+          test -f arm/mali/arch10.8/mali-csffw/Cargo.toml
+
+      - name: Publish successful sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin upstream/main:refs/heads/upstream-main --force
+          git push origin --tags
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            git push origin HEAD:main
+          fi

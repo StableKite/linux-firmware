@@ -10729,7 +10729,8 @@ Licence: Redistributable. See LICENSE.montage for details
 --------------------------------------------------------------------------
 
 Driver: panthor - Arm Mali CSF firmware
-File: arm/mali/arch10.8/mali_csffw.bin
+Source: arm/mali/arch10.8/mali-csffw/src/lib.rs
+Info: StableKite main replaces only the arch10.8 proprietary image with a source reconstruction; exact original provenance is in arm/mali/arch10.8/docs/provenance.md
 Version: arch10.8
 File: arm/mali/arch10.10/mali_csffw.bin
 Version: arch10.10
